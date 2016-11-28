@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Twitter Map</title>
+    <style>
+        html, body {
+            height: 100%;
+        }
+        #floating-panel {
+            top: 50px;
+            right: 50px;
+            position: absolute;
+            z-index: 1000;
+        }
+        #map {
+            height: 100%;
+        }
+        #coord {
+            padding: 5px;
+            color: white;
+            background-color: black;
+        }
+        #dropdownMain {
+            width: 90px;
+            color: aquamarine;
+
+        }
+    </style>
+
+    <!-- Bootstrap core CSS and JQuery-->
+    <link href="../static/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+
+    <style type="text/css">
+
+        #floating-panel {
+            margin-bottom: 0px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="floating-panel">
+    <div class="dropdown">
+          
+            <form class="navbar-form navbar-left" role="search">
+            <button type="button" class="btn btn-danger dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"> Keyword
+                <span class="caret"></span>
+                <span class="sr-only">Toggle Dropdown</span>
+                  </button>
+                        
+            <ul class="dropdown-menu">
+                <li><a href="javascript:queryKeyWord('job');">Job</a></li>
+                <li><a href="javascript:queryKeyWord('game');">game</a></li>
+                <li><a href="javascript:queryKeyWord('love');">Love</a></li>
+                <li><a href="javascript:queryKeyWord('food');">Food</a></li>
+                <li><a href="javascript:queryKeyWord('fashion');">Fashion</a></li>
+                <li><a href="javascript:queryKeyWord('NewYork');">NewYork</a></li>
+                <li><a href="javascript:queryKeyWord('LOL');">LOL</a></li>
+                <li><a href="javascript:queryKeyWord('Trump');">Trump</a></li>
+                <li><a href="javascript:queryKeyWord('Hilary');">Hilary</a></li>
+                <li><a href="javascript:queryKeyWord('hello');">hello</a></li>
+            </ul>
+              <div class="form-group">
+                <input type="text" class="form-control" placeholder="Search">
+              </div>
+              <button type="submit" class="btn btn-default">Submit</button>
+            </form>
+
+    </div>
+</div>
+
+
+<div id="map"></div>
+<div id="coord"></div>
+
+<script>
+    // Create socket
+    var socket;
+    var interval;
+    var timeInterval = 5000;
+
+    function initMap() {
+
+        // Init google map
+        var columbia = {lat: 40.806, lng: -73.963};
+        var map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 3,
+            center: columbia
+        });
+
+        // An array to store all markers
+        var googleMarkers = [];
+
+        var icons = {
+        positive: {
+          icon: new google.maps.MarkerImage("http://chart.apis.google.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|" + "00A758",
+            new google.maps.Size(21, 34),
+            new google.maps.Point(0,0),
+            new google.maps.Point(10, 34))
+        },
+        negative: {
+          icon: new google.maps.MarkerImage("http://chart.apis.google.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|" + "BA122B",
+            new google.maps.Size(21, 34),
+            new google.maps.Point(0,0),
+            new google.maps.Point(10, 34))
+        },
+        neutral: {
+          icon: new google.maps.MarkerImage("http://chart.apis.google.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|" + "808080",
+            new google.maps.Size(21, 34),
+            new google.maps.Point(0,0),
+            new google.maps.Point(10, 34))
+        }
+        };
+
+        // Establish socket connection
+        //socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        socket = io.connect(null, {port: location.port, rememberTransport:false});
+
+
+        socket.on('connect', function(){
+            setUpMap();
+            console.log('Init');
+        });
+        socket.on('message', function(tweets){
+
+            // Clear Map
+            clearMarkers(googleMarkers);
+
+            // Parse JSON
+            var tweetsJSON = JSON.parse(tweets)
+
+            // Parse every tweet in tweetsJSON
+            for (var x in tweetsJSON) {
+                console.log("display")
+                var longitude = parseFloat((tweetsJSON[x]['longitude']));
+                var latitude = parseFloat((tweetsJSON[x]['latitude']));
+                var sentiment = (tweetsJSON[x]['sentiment']);
+
+                var markerPosition = {lat: latitude, lng: longitude};
+
+                var marker = new google.maps.Marker({
+                    position: markerPosition,
+                    icon: icons[sentiment].icon,
+                    map: map
+                });
+
+                // Add markers to the array
+                googleMarkers.push(marker);
+            }
+        });
+    }
+
+
+    // Function used to set up the map
+    function setUpMap(){
+        clearInterval(interval);
+        sendSocketMessage("Init");
+        interval = setInterval(sendSocketMessage, timeInterval, "Init");
+    };
+
+    // Send key selected key word to back end, using it to search for tweets
+    function queryKeyWord(selectedWord){
+        console.log(selectedWord);
+
+        clearInterval(interval);
+
+        sendSocketMessage(selectedWord);
+        interval = setInterval(sendSocketMessage, timeInterval, selectedWord);
+    };
+
+
+    // Function used to clear all markers
+    function clearMarkers(googleMarkers){
+        for(var i = 0; i < googleMarkers.length; i++){
+            googleMarkers[i].setMap(null);
+        }
+        googleMarkers.length = 0;
+    }
+
+
+    // Function used to send socket message
+    function sendSocketMessage(message){
+        socket.send(message);
+        console.log("Message sent");
+        //console.log("Message Sent");
+    }
+
+    // Function handling the search
+    $('#searchButton').on('click', function(){
+        clearInterval(interval);
+        var keyWord = $('#keyword').val();
+
+        sendSocketMessage(keyWord);
+        interval = setInterval(sendSocketMessage, timeInterval, keyWord);
+    });
+
+</script>
+<script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=&callback=initMap">
+</script>
+<script src="../static/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+</body>
+</html>
