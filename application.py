@@ -41,7 +41,7 @@ def hello_world():
 
 @application.route('/search')
 def handle_search():
-    return render_template('search.html')
+    return render_template('searchPage.html')
 
 
 @socketio.on('realTime')
@@ -79,12 +79,12 @@ def handle_message(message):
 
     tweets = []
     for result in results['hits']['hits']:
-        tweet = {'sentiment': result['_source']['sentiment'], 'longitude': result['_source']['longitude'],
-                 'latitude': result['_source']['latitude']}
-        tweets.append(tweet)
+        
+        tweets.append({'sentiment': result['_source']['sentiment'], 'longitude': result['_source']['longitude'],
+                      'latitude': result['_source']['latitude']})
 
     send(json.dumps(tweets))
 
 
 if __name__ == '__main__':
-    socketio.run(application, host='0.0.0.0')
+    socketio.run(application, host='0.0.0.0' debug=True)

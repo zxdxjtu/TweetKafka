@@ -1,7 +1,6 @@
 import boto3
 import json
 from watson_developer_cloud import AlchemyLanguageV1
-# from multiprocessing import Pool
 from threading import Thread
 
 
@@ -19,8 +18,6 @@ class Worker(Thread):
 
 			response = alchemy_language.sentiment(text = tweet['text'])
 			tweet['sentiment'] = response['docSentiment']['type']	
-
-			print tweet
 
 			publishResponse = client.publish(TopicArn = topicArn, Message = json.dumps(tweet))
 
@@ -45,12 +42,12 @@ class WorkerPool(Thread):
 if __name__ == '__main__':
 
 	# Get AWS SNS 
-	client = boto3.client('sns')
+	sns = boto3.client('sns')
 	response = client.create_topic(Name = 'tweets2')
 	topicArn = response['TopicArn']
 
 	# Subscribe to SNS
-	subscribeResponse = client.subscribe(TopicArn = topicArn, Protocol = 'http', Endpoint = 'Sample-env-1.89i8nxvymq.us-west-2.elasticbeanstalk.com')
+	subscribeResponse = sns.subscribe(TopicArn = topicArn, Protocol = 'http', Endpoint = 'Sample-env-1.89i8nxvymq.us-west-2.elasticbeanstalk.com')
 
 	alchemy_language = AlchemyLanguageV1(api_key = '')
 
